@@ -31,5 +31,5 @@ jobs:
         context: .
         push: true
         tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/cloudflare-ddns:latest
-          ${{ secrets.DOCKERHUB_USERNAME }}/cloudflare-ddns:${{ github.sha }}
+          ${{ secrets.DOCKERHUB_USERNAME }}/local-ddns:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/local-ddns:${{ github.sha }}
