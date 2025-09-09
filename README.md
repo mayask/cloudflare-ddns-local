@@ -34,6 +34,7 @@ The service:
 
 ### Docker (Recommended)
 
+#### Single Zone
 ```bash
 docker run -d \
   -e CF_API_TOKEN='your-cloudflare-api-token' \
@@ -43,8 +44,18 @@ docker run -d \
   raregoat8804/cloudflare-ddns-local:latest
 ```
 
+#### Multiple Zones
+```bash
+docker run -d \
+  -e CF_API_TOKEN='your-cloudflare-api-token' \
+  -e CF_ZONES='[{"zone_id":"zone1_id","record_name":"*.domain1.com"},{"zone_id":"zone2_id","record_name":"*.domain2.com"}]' \
+  -e UPDATE_INTERVAL='3600000' \
+  raregoat8804/cloudflare-ddns-local:latest
+```
+
 ### Environment Variables
 
+#### Single Zone Mode
 | Variable | Description | Default |
 |----------|-------------|---------|
 | CF_API_TOKEN | Cloudflare API token | Required |
@@ -52,13 +63,37 @@ docker run -d \
 | CF_RECORD_NAME | DNS record pattern to update | Required |
 | UPDATE_INTERVAL | Update interval in milliseconds | 3600000 (1 hour) |
 
+#### Multi-Zone Mode
+| Variable | Description | Default |
+|----------|-------------|---------|
+| CF_API_TOKEN | Cloudflare API token | Required |
+| CF_ZONES | JSON array of zone configurations | Required |
+| UPDATE_INTERVAL | Update interval in milliseconds | 3600000 (1 hour) |
+
+**CF_ZONES Format:**
+```json
+[
+  {
+    "zone_id": "your-first-zone-id",
+    "record_name": "*.domain1.com"
+  },
+  {
+    "zone_id": "your-second-zone-id", 
+    "record_name": "specific.domain2.com"
+  }
+]
+```
+
 ### Cloudflare Setup
 
 1. Create an API token in Cloudflare with:
    - Zone:DNS:Edit permissions
    - Zone:Zone:Read permissions
-2. Get your Zone ID from Cloudflare dashboard
-3. Configure the record pattern to match your needs
+   - **For multiple zones:** Include all zones in the token permissions, or use "All zones"
+2. Get your Zone ID(s) from Cloudflare dashboard
+3. Configure the record pattern(s) to match your needs
+
+**Multi-Zone API Token:** A single API token can manage multiple zones. You don't need separate tokens for each domain.
 
 ### Record Pattern Examples
 
@@ -93,8 +128,11 @@ git clone https://github.com/mayask/cloudflare-ddns-local.git
 # Install dependencies
 npm install
 
-# Run locally
+# Run locally (single zone)
 CF_API_TOKEN=xxx CF_ZONE_ID=xxx CF_RECORD_NAME=xxx node server.js
+
+# Run locally (multiple zones)
+CF_API_TOKEN=xxx CF_ZONES='[{"zone_id":"zone1","record_name":"*.domain1.com"},{"zone_id":"zone2","record_name":"*.domain2.com"}]' node server.js
 ```
 
 ## License

@@ -4,7 +4,26 @@ const https = require('https');
 const CF_API_TOKEN = process.env.CF_API_TOKEN;
 const CF_ZONE_ID = process.env.CF_ZONE_ID;
 const CF_RECORD_NAME = process.env.CF_RECORD_NAME;
+const CF_ZONES = process.env.CF_ZONES;
 const UPDATE_INTERVAL = parseInt(process.env.UPDATE_INTERVAL || '3600000', 10); // 1 hour default
+
+// Parse zone configuration (supports both single and multi-zone)
+let zones = [];
+if (CF_ZONES) {
+    try {
+        zones = JSON.parse(CF_ZONES);
+        console.log(`Multi-zone mode: Managing ${zones.length} zones`);
+    } catch (error) {
+        console.error('Error parsing CF_ZONES:', error.message);
+        process.exit(1);
+    }
+} else if (CF_ZONE_ID && CF_RECORD_NAME) {
+    zones = [{ zone_id: CF_ZONE_ID, record_name: CF_RECORD_NAME }];
+    console.log('Single-zone mode: Managing 1 zone');
+} else {
+    console.error('Configuration required: Either CF_ZONES or (CF_ZONE_ID + CF_RECORD_NAME)');
+    process.exit(1);
+}
 
 // Function to fetch public IP
 function updatePublicIP() {
@@ -28,7 +47,11 @@ function updatePublicIP() {
             const ipMatch = data.match(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/);
             if (ipMatch) {
                 console.log(`IP: "${ipMatch[0]}"`);
-                updateCloudflareDNS(ipMatch[0]);
+                // Update DNS records for all configured zones
+                zones.forEach((zone, index) => {
+                    console.log(`\nUpdating zone ${index + 1}/${zones.length}: ${zone.zone_id}`);
+                    updateCloudflareDNS(ipMatch[0], zone.zone_id, zone.record_name);
+                });
             } else {
                 console.log('Could not extract IP from response');
                 process.exit(1);
@@ -39,11 +62,11 @@ function updatePublicIP() {
     });
 }
 
-function updateCloudflareDNS(newIP) {
+function updateCloudflareDNS(newIP, zoneId, recordName) {
     // List all A records without name filter
     const listOptions = {
         hostname: 'api.cloudflare.com',
-        path: `/client/v4/zones/${CF_ZONE_ID}/dns_records?type=A`,
+        path: `/client/v4/zones/${zoneId}/dns_records?type=A`,
         headers: {
             'Authorization': `Bearer ${CF_API_TOKEN}`,
             'Content-Type': 'application/json'
@@ -63,14 +86,14 @@ function updateCloudflareDNS(newIP) {
             }
 
             // Convert wildcard pattern to regex
-            const wildcardToRegex = CF_RECORD_NAME.replace(/\./g, '\\.').replace(/\*/g, '.*');
+            const wildcardToRegex = recordName.replace(/\./g, '\\.').replace(/\*/g, '.*');
             const namePattern = new RegExp(`^${wildcardToRegex}$`);
 
             // Filter records that match the pattern
             const matchingRecords = response.result.filter(record => namePattern.test(record.name));
 
             if (matchingRecords.length === 0) {
-                console.error('No matching DNS records found for pattern:', CF_RECORD_NAME);
+                console.error('No matching DNS records found for pattern:', recordName);
                 return;
             }
 
@@ -86,7 +109,7 @@ function updateCloudflareDNS(newIP) {
 
                 const updateOptions = {
                     hostname: 'api.cloudflare.com',
-                    path: `/client/v4/zones/${CF_ZONE_ID}/dns_records/${record.id}`,
+                    path: `/client/v4/zones/${zoneId}/dns_records/${record.id}`,
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${CF_API_TOKEN}`,
