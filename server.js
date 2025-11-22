@@ -63,7 +63,7 @@ function updatePublicIP() {
                 log(`IP: "${ipMatch[0]}"`);
                 // Update DNS records for all configured zones
                 zones.forEach((zone, index) => {
-                    log(`Updating zone ${index + 1}/${zones.length}: ${zone.zone_id}`);
+                    log(`Updating zone ${index + 1}/${zones.length}: ${zone.record_name}`);
                     updateCloudflareDNS(ipMatch[0], zone.zone_id, zone.record_name);
                 });
             } else {
